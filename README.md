@@ -1,29 +1,46 @@
 # OPC UA Asset Discovery
 
-An experimental, evidence-first research prototype for identifying OPC UA communication in live network traffic and controlled packet captures. Passive packet evidence establishes candidate assets and endpoint roles; optional active OPC UA enrichment is kept separate and is available only after positive passive server-endpoint discovery.
+**Experimental research prototype**
 
-The current experiment demonstrates controlled validation on selected interfaces, endpoints, and labeled packet-capture fixtures. It is not universal or autonomous network discovery and does not establish that a network is free of OPC UA when no traffic is observed.
+An evidence-first prototype for identifying OPC UA communication from passive network traffic and optionally enriching positively discovered server endpoints through controlled active OPC UA requests.
+
+## Repository Status
+
+Experimental research prototype.
 
 ## Research Motivation
 
-Operational technology asset inventories are often incomplete, while port-based identification can confuse services that share ports or run on nonstandard ports. This prototype investigates a conservative alternative: use captured protocol framing and explicit service evidence for passive identification, retain where each observation came from, and only then allow controlled OPC UA requests to positively discovered servers.
+Operational technology (OT) asset inventories may be incomplete, and port-based identification can confuse services sharing a port or miss services on nonstandard ports. This project examines evidence-based OPC UA identification from observed traffic while retaining evidence provenance and separating passive analysis from any active enrichment.
 
-## Pipeline
+## Research Problem
+
+Given traffic visible to a selected capture interface, identify evidence of OPC UA communication, associate observations with candidate endpoints, and infer endpoint roles where protocol direction provides sufficient evidence. The prototype also explores how controlled active enrichment can be performed after passive discovery without turning the workflow into a target-first scan.
+
+## Architecture
+
+The architecture is passive-first. Active enrichment is optional and cannot establish an endpoint as a passive discovery; it is a separate follow-on observation for positively discovered server endpoints.
 
 ```text
-NIC / live traffic
-	-> packet acquisition
-	-> L2-L4 extraction
-	-> OPC UA protocol identification
-	-> passive endpoint discovery
-	-> client/server role inference
-	-> controlled active enrichment (opt-in)
-	-> JSON inventory and graphical HTML report
+NIC / Live Traffic
+	-> Packet Acquisition
+	-> L2-L4 Extraction
+	-> OPC UA Protocol Identification
+	-> Passive Endpoint Discovery
+	-> Client/Server Role Inference
+	-> Controlled Active Enrichment
+	-> JSON Inventory
+	-> Graphical Report
 ```
 
-Active enrichment is disabled unless enabled with the CLI options. When enabled, targets are drawn from detected server endpoints in passive evidence, not from a target-first scan. The VS Code live demo supplies an allowlist for its configured controlled test endpoint.
+The inventory keeps the following concepts distinct:
 
-## Implemented Features
+- **Passive observation:** packet-derived facts, including protocol messages, addresses, ports, packet indices, and stream provenance.
+- **Passive inference:** derived endpoint identity and client/server role, based on observed protocol evidence and direction. An inference is not itself a directly observed packet field.
+- **Active observation:** results returned by an explicitly enabled OPC UA client request, stored separately from passive evidence and labeled with active provenance.
+- **Detector confidence:** an evidence score associated with a detector result. It is not a probability of correctness and is not benchmark accuracy.
+- **Benchmark metrics:** classification and operation-hint comparisons against labels for the included offline fixtures only; these do not measure detector confidence or establish live-network performance.
+
+## Features
 
 - Live packet capture using Scapy, with selectable interface, duration, packet limit, optional BPF filter, and local CIDR context.
 - IPv4, TCP, UDP, Ethernet, ARP, and DNS-SD packet-field extraction.
@@ -54,7 +71,7 @@ py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-## Run
+## Usage
 
 ### VS Code Live Demo
 
@@ -76,7 +93,7 @@ Passive runtime capture without a supplied target:
 
 Add `--diagnostics` to include interface resolution, BPF state, packet counts, detector invocation counts, and metadata-only TCP payload samples. A restrictive BPF filter can hide OPC UA traffic, especially when it runs on nonstandard ports.
 
-Active enrichment can be explicitly enabled for positively discovered servers. In production or shared networks, use an allowlist containing only authorized IP addresses:
+**Security / Authorization:** Active enrichment must only be used against authorized endpoints. It can be explicitly enabled for positively discovered servers. In production or shared networks, use an allowlist containing only authorized IP addresses:
 
 ```powershell
 .\.venv\Scripts\python.exe .\run_probe.py --mode runtime --iface "Wi-Fi" --duration 60 --enable-active --active-opcua --active-allowlist .\allowed_ips.txt --output .\inventory.json
@@ -97,7 +114,7 @@ Analyze one included capture or run the labeled fixture benchmark:
 .\.venv\Scripts\python.exe .\run_probe.py --mode offline --benchmark-dir .\release_pcaps --benchmark-output .\benchmark.json
 ```
 
-The benchmark compares predictions with the labels in `release_pcaps/ground_truth_labels.json`. Its classification accuracy, precision, recall, and F1 are fixture-benchmark metrics only; they are not live-network performance claims. Detector confidence is a separate evidence score and is not accuracy.
+The benchmark compares predictions with the labels in `release_pcaps/ground_truth_labels.json`. Any classification accuracy, precision, recall, or F1 produced by the runner are fixture-benchmark metrics only; they are not live-network performance claims. Detector confidence remains a separate evidence score and is not accuracy.
 
 ## Output
 
@@ -128,23 +145,46 @@ opcua_asset_discovery_dashboard.html  Graphical dashboard template
 
 The local `umati_active_probe_4840.pcapng` capture and generated `results/` files are excluded from Git because they may contain local or network-specific observations. The small labeled fixtures in `release_pcaps/` are the intentional offline test corpus.
 
-## Experimental Validation
+## Testing
 
-The repository includes unit tests for protocol evidence, packet parsing, reassembly, active-probe gating, and report generation. The release benchmark contains three labeled PCAP fixtures: two OPC UA captures, including nonstandard-port traffic, and one mixed-traffic negative fixture. The benchmark runner calculates classification metrics and operation-hint metrics against those labels. This small, selected fixture set supports repeatable regression checks; it does not establish general detection rates or broad deployment performance.
+The current offline unit-test run completed **39 tests successfully**. The tests cover protocol evidence, packet parsing, reassembly, active-probe gating, and report generation.
 
-Run unit tests:
+Run the unit suite:
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s .\tests -p "test_*.py"
 ```
 
-Run the full existing validation script:
+## Benchmark
+
+The included fixture set is defined by `release_pcaps/ground_truth_labels.json` and contains the repository's labeled positive and negative examples. The offline runner calculates classification metrics and operation-hint metrics against these labels. These are fixture-specific benchmark results; no broader dataset coverage or deployment performance is claimed here.
+
+Run the offline fixture benchmark:
+
+```powershell
+.\.venv\Scripts\python.exe .\run_probe.py --mode offline --benchmark-dir .\release_pcaps --benchmark-output .\benchmark.json
+```
+
+## Experimental Validation
+
+The repository's full validation script runs the unit suite, passive-service validation, a local active ground-truth OPC UA server check, and the offline fixture benchmark:
 
 ```powershell
 .\run_final_validation.ps1
 ```
 
-The full script includes active ground-truth validation against its configured test server, so run it only where that test is authorized and reachable. It also runs the offline release-PCAP benchmark.
+The current validation status reported here is the offline unit suite only: 39 tests passed. The full script was not rerun for this documentation update. Its active ground-truth check starts a local OPC UA server and should be run only in an environment where that activity is authorized and permitted.
+
+## Reproducibility
+
+From a fresh checkout, another researcher can:
+
+1. Install the pinned dependencies in a virtual environment using the [installation](#installation) commands above.
+2. Run offline analysis on the included labeled captures using the [offline fixture](#offline-fixtures) or [benchmark](#benchmark) commands.
+3. Run the unit suite using the command in [Testing](#testing).
+4. Run **Live OPC UA Demo** from VS Code in an authorized environment with the configured controlled endpoint reachable. This performs a 120-second capture and makes a client connection to that endpoint; it is not required for offline reproduction.
+
+Capture results depend on interface selection, traffic visibility, permissions, and the test endpoint. Generated reports and inventories are local outputs and are not included as experimental fixtures.
 
 ## Limitations
 
@@ -156,17 +196,19 @@ The full script includes active ground-truth validation against its configured t
 - On routed traffic, an observed Ethernet MAC may belong to a next-hop gateway rather than the remote IP endpoint.
 - Active enrichment can be limited by server policy, connectivity, or session limits and must only be used against authorized endpoints.
 
+This is a controlled experimental research prototype and does not claim universal autonomous OT asset discovery or complete network visibility.
+
 ## Research Positioning
 
 This is an experimental research prototype for controlled validation of passive-first OPC UA identification and endpoint enrichment. Results are specific to the selected interface, observed traffic, implementation, and labeled fixtures. They should not be interpreted as universal autonomous OT asset discovery, a security audit, or a guarantee of network completeness.
 
 ## Citation
 
-No associated paper, DOI, formal author metadata, or release identifier is currently included. For reproducibility, cite the repository URL and the exact Git commit or release tag used:
+The associated paper is in preparation. No publication, DOI, funding, or affiliation information is asserted here. For software identification, cite the repository URL and the exact Git commit or release tag used:
 
 ```text
 OPC UA Asset Discovery research prototype. https://github.com/Zmuzamil/opc-ua-asset-discovery
 Specify the exact commit or release tag and access date when citing a particular version.
 ```
 
-No `LICENSE` file is included because no reuse license has been specified. Public availability on GitHub does not by itself grant permission to reuse or redistribute the code.
+No `LICENSE` file is included because no reuse license has been selected. Public availability on GitHub does not by itself grant permission to reuse or redistribute the code.
