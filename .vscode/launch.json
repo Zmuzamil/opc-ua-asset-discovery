@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Open Latest OPC UA Results",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/open_latest_result.py",
+      "console": "internalConsole",
+      "justMyCode": true
+    },
+    {
+      "name": "Live OPC UA Demo",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_live_demo.py",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ]
+}

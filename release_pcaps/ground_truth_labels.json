@@ -1,0 +1,28 @@
+{
+  "files": {
+    "opcua_icsmaster_method.pcap": {
+      "has_opcua": true,
+      "expected_operation_hints": [
+        "get_endpoints",
+        "create_session",
+        "activate_session"
+      ]
+    },
+    "opcua_positive_nonstandard_port.pcap": {
+      "has_opcua": true,
+      "expected_operation_hints": [
+        "get_endpoints",
+        "create_session",
+        "activate_session",
+        "browse",
+        "read",
+        "write",
+        "close_session"
+      ]
+    },
+    "non_opcua_mixed_traffic.pcap": {
+      "has_opcua": false,
+      "expected_operation_hints": []
+    }
+  }
+}

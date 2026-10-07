@@ -1,0 +1,12 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Generated reports and live captures (contain local network addresses and traffic)
+results/
+inventory*.json
+asset_inventory.json
+benchmark.json
+passive_opcua_service_validation.json
+ground_truth_opcua_validation.json

@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>OPC UA / OT Asset Discovery — Experimental Validation Dashboard</title>
+  <style>
+    :root {
+      --ink: #17283d;
+      --navy: #10263d;
+      --navy-2: #193852;
+      --blue: #246a8a;
+      --blue-soft: #e7f1f5;
+      --teal: #26766f;
+      --teal-soft: #e6f3ef;
+      --lime: #b8d56a;
+      --paper: #f2f5f5;
+      --white: #fff;
+      --line: #d9e1e3;
+      --muted: #637380;
+      --muted-2: #8a989f;
+      --amber: #96640e;
+      --amber-soft: #fff3d9;
+      --red: #a34545;
+      --red-soft: #fff0ee;
+      --green: #267457;
+      --green-soft: #e9f5ee;
+      --shadow: 0 10px 28px rgba(20, 46, 65, .055);
+      --sans: "Segoe UI", "Aptos", "Trebuchet MS", sans-serif;
+      --mono: "Cascadia Code", "Consolas", monospace;
+      font-family: var(--sans); color: var(--ink); background: var(--paper); font-synthesis: none; text-rendering: optimizeLegibility;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; }
+    button, input, select { font: inherit; }
+    button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid #77b2c2; outline-offset: 2px; }
+    [hidden] { display: none !important; }
+    .shell { max-width: 1500px; margin: 0 auto; padding: 0 30px 48px; }
+    .masthead { color: white; background: var(--navy); border-bottom: 4px solid var(--lime); }
+    .mast-inner { max-width: 1500px; margin: 0 auto; padding: 28px 30px 25px; }
+    .topline, .header-bottom, .section-head, .card-title-row, .traffic-total, .link-observation, .footer { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+    .topline { color: #c0d2dc; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
+    .brand-mark { display: inline-flex; align-items: center; gap: 10px; font-weight: 750; }
+    .brand-square { width: 12px; height: 12px; border: 2px solid var(--lime); transform: rotate(45deg); }
+    .source-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 35px; padding: 8px 12px; color: var(--navy); background: white; border: 1px solid rgba(255,255,255,.5); border-radius: 3px; font-size: 11px; font-weight: 700; cursor: pointer; }
+    .button:hover { background: #edf4f5; }
+    .button.ghost { color: white; background: transparent; border-color: rgba(255,255,255,.35); }
+    .button:disabled { opacity: .5; cursor: not-allowed; }
+    h1 { max-width: 960px; margin: 27px 0 8px; font-size: clamp(28px, 3.8vw, 43px); line-height: 1.08; font-weight: 650; }
+    .subtitle { margin: 0; color: #c2d3dd; font-size: 14px; }
+    .header-bottom { align-items: end; margin-top: 24px; padding-top: 17px; border-top: 1px solid rgba(255,255,255,.13); }
+    .meta-line { display: flex; flex-wrap: wrap; gap: 15px 27px; }
+    .meta-item { min-width: 100px; }
+    .meta-label { display: block; color: #91a8b5; font-size: 9px; letter-spacing: .09em; text-transform: uppercase; }
+    .meta-value { display: block; margin-top: 4px; color: white; font-size: 12px; font-weight: 600; }
+    .status-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 11px; color: #e7f8ec; background: rgba(47,124,92,.27); border: 1px solid rgba(152,218,183,.4); border-radius: 3px; font-size: 11px; font-weight: 750; white-space: nowrap; }
+    .status-pill.no { color: #f6dcdc; background: rgba(158,66,66,.24); border-color: rgba(235,163,163,.35); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #75d3a2; }
+    .status-pill.no .status-dot { background: #ed9292; }
+    .load-state { padding: 9px 30px; color: #d8e6e9; background: #203a50; font-size: 11px; }
+    .load-state.error { color: #ffe1d4; background: #703e3a; }
+    .nav { position: sticky; z-index: 5; top: 0; overflow-x: auto; margin: 0 -30px 24px; padding: 0 30px; background: rgba(242,245,245,.96); border-bottom: 1px solid var(--line); backdrop-filter: blur(10px); }
+    .nav-inner { display: flex; width: max-content; }
+    .nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 11px; color: var(--muted); font-size: 11px; font-weight: 650; text-decoration: none; border-bottom: 2px solid transparent; }
+    .nav a:hover { color: var(--navy); border-bottom-color: var(--teal); }
+    .section { scroll-margin-top: 55px; margin: 25px 0 35px; }
+    .section-head { align-items: end; margin: 0 0 14px; }
+    .section-kicker { display: block; margin-bottom: 5px; color: var(--teal); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .13em; }
+    h2 { margin: 0; color: var(--navy); font-size: 21px; line-height: 1.2; font-weight: 680; }
+    h3 { margin: 0; color: var(--navy); font-size: 15px; font-weight: 680; }
+    .section-note { max-width: 720px; margin: 6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+    .subtle, .eyebrow { color: var(--muted); font-size: 10px; }
+    .grid { display: grid; gap: 12px; }
+    .kpi-grid { grid-template-columns: repeat(5,minmax(0,1fr)); }
+    .card { min-width: 0; padding: 16px 17px; background: white; border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 8px 24px rgba(20,46,65,.045); }
+    .kpi { min-height: 96px; overflow: hidden; }
+    .kpi-label { min-height: 26px; color: var(--muted); font-size: 10px; line-height: 1.35; }
+    .kpi-value { margin-top: 9px; color: var(--navy); font-size: 24px; line-height: 1; font-weight: 730; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+    .kpi-unit { display: block; margin-top: 6px; color: var(--muted-2); font-size: 9px; overflow-wrap: anywhere; }
+    .two-col { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(300px,.85fr); gap: 13px; }
+    .three-col { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 13px; }
+    .card-title-row { align-items: start; margin-bottom: 14px; }
+    .traffic-total strong { color: var(--navy); font-size: 26px; font-variant-numeric: tabular-nums; }
+    .traffic-bar { display: flex; height: 15px; margin: 16px 0 13px; overflow: hidden; background: #e5ebed; border-radius: 2px; }
+    .traffic-bar span { min-width: 1px; }
+    .traffic-opc { background: var(--teal); }
+    .traffic-other { background: #aab9c2; }
+    .legend-row { display: flex; flex-wrap: wrap; gap: 15px; }
+    .legend-item { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 10px; }
+    .legend-swatch { width: 9px; height: 9px; background: var(--teal); border-radius: 2px; }
+    .legend-swatch.gray { background: #aab9c2; }
+    .share-value { color: var(--teal); font-size: 21px; font-weight: 740; }
+    .metric-pairs { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-top: 13px; }
+    .metric-pair { min-width: 0; padding-top: 9px; border-top: 1px solid #edf0f1; }
+    .metric-pair span { display: block; color: var(--muted); font-size: 9px; }
+    .metric-pair strong { display: block; margin-top: 4px; color: var(--navy); font-size: 13px; font-variant-numeric: tabular-nums; }
+    .pipe { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 9px; counter-reset: stage; }
+    .stage { min-height: 98px; padding: 13px 12px; background: white; border: 1px solid var(--line); border-top: 3px solid #96a9b3; border-radius: 3px; counter-increment: stage; }
+    .stage.passive { border-top-color: var(--teal); }
+    .stage.active { border-top-color: var(--blue); }
+    .stage::before { display: block; margin-bottom: 10px; color: var(--muted-2); content: "0" counter(stage); font-family: var(--mono); font-size: 9px; }
+    .stage strong { display: block; color: var(--navy); font-size: 11px; }
+    .stage span { display: block; margin-top: 5px; color: var(--muted); font-size: 9px; line-height: 1.4; overflow-wrap: anywhere; }
+    .phase-band { display: flex; justify-content: space-between; gap: 8px; margin-top: 9px; color: white; font-size: 9px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+    .phase-band span { padding: 7px 9px; border-radius: 2px; }
+    .phase-passive { flex: 1; background: var(--teal); }
+    .phase-active { flex: 1; background: var(--blue); }
+    .phase-arrow { color: var(--muted); background: transparent; }
+    .asset-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 13px; }
+    .asset-card { padding: 0; overflow: hidden; }
+    .asset-top { display: flex; justify-content: space-between; align-items: start; gap: 14px; padding: 17px 18px; background: #f8fbfb; border-bottom: 1px solid var(--line); }
+    .asset-id { margin-top: 7px; color: var(--navy); font-family: var(--mono); font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+    .asset-subid { margin-top: 4px; color: var(--muted); font-family: var(--mono); font-size: 10px; }
+    .asset-body { padding: 16px 18px; }
+    .role-badge, .tag { display: inline-flex; align-items: center; padding: 4px 7px; color: #225c56; background: #e6f3ef; border: 1px solid #c9e4dc; border-radius: 2px; font-size: 9px; font-weight: 750; white-space: nowrap; }
+    .role-badge.server { color: #225778; background: var(--blue-soft); border-color: #ccdee8; }
+    .tag.neutral { color: #536470; background: #eff3f4; border-color: #dfe6e8; }
+    .tag.warn { color: var(--amber); background: var(--amber-soft); border-color: #f0deb6; }
+    .definition-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px 17px; }
+    .definition { min-width: 0; }
+    .definition dt { color: var(--muted); font-size: 9px; text-transform: capitalize; }
+    .definition dd { margin: 4px 0 0; color: var(--ink); font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
+    .mono { font-family: var(--mono); font-size: 10px !important; overflow-wrap: anywhere; }
+    details { border-top: 1px solid #edf0f1; }
+    details:first-child { border-top: 0; }
+    summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; color: var(--navy); cursor: pointer; list-style: none; font-size: 11px; font-weight: 700; }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { color: var(--teal); content: "+"; font-size: 17px; font-weight: 400; }
+    details[open] > summary::after { content: "−"; }
+    .details-content { padding: 0 0 12px; }
+    .evidence-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+    .evidence-chip { padding: 5px 7px; color: #355065; background: #f0f5f6; border: 1px solid #dce7e9; border-radius: 2px; font-family: var(--mono); font-size: 9px; overflow-wrap: anywhere; }
+    .callout { padding: 11px 13px; color: #495d68; background: #edf4f5; border-left: 3px solid var(--blue); border-radius: 2px; font-size: 10px; line-height: 1.55; }
+    .callout.warn { color: #735311; background: var(--amber-soft); border-left-color: #cb9731; }
+    .callout.good { color: #245d49; background: var(--green-soft); border-left-color: var(--green); }
+    .message-chart { display: grid; gap: 11px; }
+    .bar-row { display: grid; grid-template-columns: 38px minmax(0,1fr) 66px; align-items: center; gap: 9px; }
+    .bar-label { color: var(--navy); font-family: var(--mono); font-size: 10px; font-weight: 700; }
+    .bar-track { height: 11px; overflow: hidden; background: #edf1f2; border-radius: 2px; }
+    .bar-fill { height: 100%; min-width: 2px; background: var(--teal); }
+    .bar-count { color: var(--muted); font-family: var(--mono); font-size: 9px; text-align: right; }
+    .sequence { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-top: 16px; padding: 11px; background: #f6f9f9; border: 1px solid var(--line); border-radius: 3px; }
+    .sequence span { padding: 5px 8px; color: var(--navy); background: white; border: 1px solid #dbe4e6; border-radius: 2px; font-family: var(--mono); font-size: 9px; font-weight: 700; }
+    .sequence b { color: #91a0a7; font-size: 11px; }
+    .data-table-wrap { width: 100%; max-height: 600px; overflow: auto; border: 1px solid var(--line); border-radius: 3px; }
+    table { width: 100%; border-collapse: collapse; font-size: 10px; text-align: left; }
+    th { position: sticky; z-index: 1; top: 0; padding: 9px 10px; color: #536575; background: #f2f6f6; border-bottom: 1px solid var(--line); font-size: 9px; font-weight: 750; white-space: nowrap; }
+    td { padding: 8px 10px; color: #314452; border-bottom: 1px solid #edf0f1; vertical-align: top; }
+    tr:last-child td { border-bottom: 0; }
+    tr:hover td { background: #fafcfc; }
+    .nowrap { white-space: nowrap; }
+    .table-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 0 0 11px; }
+    .control { min-height: 32px; padding: 6px 8px; color: var(--ink); background: white; border: 1px solid var(--line); border-radius: 2px; font-size: 10px; }
+    .control.search { flex: 1 1 200px; }
+    .table-meta { margin-left: auto; color: var(--muted); font-size: 9px; }
+    .text-button, .copy-btn { padding: 3px 6px; color: var(--blue); background: white; border: 1px solid #d9e3e6; border-radius: 2px; cursor: pointer; font-size: 9px; font-weight: 650; }
+    .relationship { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 11px; }
+    .node { min-width: 0; padding: 13px; background: #f7fafb; border: 1px solid var(--line); border-radius: 3px; }
+    .node.server { background: #f2f7f9; border-color: #cbdee7; }
+    .node-role { color: var(--teal); font-size: 8px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+    .node.server .node-role { color: var(--blue); }
+    .node-ip { margin-top: 6px; color: var(--navy); font-family: var(--mono); font-size: 11px; font-weight: 700; overflow-wrap: anywhere; }
+    .node-port { margin-top: 4px; color: var(--muted); font-size: 9px; }
+    .exchange { color: var(--teal); text-align: center; }
+    .exchange strong { display: block; font-size: 19px; }
+    .exchange span { display: block; color: var(--muted); font-size: 8px; }
+    .link-observation { padding: 10px 0; border-top: 1px solid #edf0f1; }
+    .link-observation:first-child { border-top: 0; }
+    .link-mac { color: var(--navy); font-family: var(--mono); font-size: 11px; font-weight: 700; }
+    .enrichment-path { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; margin-bottom: 14px; }
+    .enrichment-step { padding: 10px; color: #526572; background: #f4f7f8; border: 1px solid var(--line); border-radius: 2px; font-size: 9px; font-weight: 700; }
+    .enrichment-step.active { color: #205770; background: var(--blue-soft); border-color: #c9dce6; }
+    .enrichment-step strong { display: block; margin-bottom: 4px; color: var(--muted-2); font-family: var(--mono); font-size: 8px; }
+    .namespace-scroll { max-height: 340px; overflow: auto; border: 1px solid var(--line); border-radius: 2px; }
+    .namespace-scroll th { top: 0; }
+    .hint-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+    .hint-card { min-width: 0; padding: 11px; background: #f8fafb; border: 1px solid #e1e8ea; border-radius: 2px; }
+    .hint-name { color: var(--navy); font-size: 11px; font-weight: 700; }
+    .hint-node { margin-top: 5px; color: var(--blue); font-family: var(--mono); font-size: 9px; overflow-wrap: anywhere; }
+    .hint-value { margin-top: 6px; color: #455864; font-size: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .provenance-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 9px; }
+    .provenance-card { padding: 12px; border: 1px solid var(--line); border-radius: 3px; }
+    .provenance-card strong { color: var(--navy); font-size: 9px; letter-spacing: .04em; }
+    .provenance-card p { margin: 6px 0 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
+    .provenance-card.observed { border-left: 3px solid var(--teal); }
+    .provenance-card.inferred { border-left: 3px solid #bc8a2b; }
+    .provenance-card.active { border-left: 3px solid var(--blue); }
+    .compare-col { padding: 16px; background: white; border: 1px solid var(--line); border-radius: 3px; }
+    .compare-col h3 { margin-bottom: 11px; }
+    .compare-col ul { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+    .compare-col li { display: flex; align-items: start; gap: 8px; color: #475b68; font-size: 10px; line-height: 1.4; }
+    .compare-col li::before { width: 6px; height: 6px; flex: 0 0 6px; margin-top: 4px; background: var(--teal); border-radius: 50%; content: ""; }
+    .compare-col.active li::before { background: var(--blue); }
+    .warning-list { display: grid; gap: 8px; }
+    .warning-row { display: grid; grid-template-columns: 22px minmax(0,1fr); gap: 9px; padding: 11px; background: #fffaf0; border: 1px solid #f0e3c6; border-radius: 2px; }
+    .warning-icon { display: flex; width: 19px; height: 19px; align-items: center; justify-content: center; color: var(--amber); background: #f7e8c5; border-radius: 50%; font-size: 10px; font-weight: 800; }
+    .warning-row p { margin: 0; color: #66572f; font-size: 10px; line-height: 1.5; }
+    .validation-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+    .validation-item { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px; background: #fafcfc; border: 1px solid var(--line); border-radius: 2px; }
+    .validation-item span:first-child { color: #435663; font-size: 9px; line-height: 1.35; }
+    .validation-state { flex: 0 0 auto; padding: 4px 5px; color: var(--green); background: var(--green-soft); border-radius: 2px; font-size: 8px; font-weight: 800; }
+    .validation-state.info { color: var(--blue); background: var(--blue-soft); }
+    .conclusion { padding: 19px; color: white; background: var(--navy); border-left: 4px solid var(--lime); border-radius: 3px; }
+    .conclusion h2 { color: white; }
+    .conclusion p { max-width: 1000px; margin: 9px 0 0; color: #ccdae1; font-size: 11px; line-height: 1.65; }
+    .conclusion-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 7px; margin-top: 14px; }
+    .conclusion-item { padding: 8px; color: #deebee; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 2px; font-size: 9px; }
+    .raw-area { display: block; width: 100%; min-height: 340px; max-height: 75vh; margin: 0; padding: 13px; overflow: auto; color: #d9e6ea; background: #132a3e; border: 1px solid #294359; border-radius: 2px; font-family: var(--mono); font-size: 9px; line-height: 1.55; white-space: pre; }
+    .empty { padding: 25px; color: var(--muted); text-align: center; font-size: 11px; }
+    .footer { margin-top: 32px; padding-top: 14px; color: var(--muted); border-top: 1px solid var(--line); font-size: 9px; }
+    @media (max-width: 1050px) { .kpi-grid { grid-template-columns: repeat(4,minmax(0,1fr)); } }
+    @media (max-width: 760px) {
+      .shell { padding-right: 16px; padding-left: 16px; }
+      .mast-inner { padding: 20px 16px 17px; }
+      .topline { align-items: start; }
+      h1 { margin-top: 21px; font-size: 29px; }
+      .subtitle { font-size: 12px; line-height: 1.5; }
+      .header-bottom { align-items: start; flex-direction: column; }
+      .meta-line { gap: 11px 18px; }
+      .nav { margin-right: -16px; margin-left: -16px; padding-right: 16px; padding-left: 16px; }
+      .nav a { padding: 0 8px; font-size: 10px; }
+      .kpi-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .two-col, .three-col, .asset-grid { grid-template-columns: 1fr; }
+      .pipe { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .stage:last-child { grid-column: span 2; }
+      .phase-band { flex-wrap: wrap; }
+      .phase-arrow { order: 3; width: 100%; text-align: center; }
+      .phase-active { order: 4; }
+      .enrichment-path { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .provenance-grid, .validation-grid { grid-template-columns: 1fr; }
+      .conclusion-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .hint-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .relationship { gap: 6px; }
+      .node { padding: 9px; }
+      .node-ip { font-size: 9px; }
+      .footer { align-items: start; flex-direction: column; }
+      .section-head { align-items: start; flex-direction: column; }
+    }
+    @media (max-width: 410px) {
+      .topline { flex-direction: column; }
+      .kpi-value { font-size: 21px; }
+      .definition-grid, .hint-grid { grid-template-columns: 1fr; }
+      .conclusion-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="masthead"><div class="mast-inner">
+    <div class="topline"><div class="brand-mark"><span class="brand-square" aria-hidden="true"></span> OT NETWORK RESEARCH</div><div class="source-actions"><label class="button" for="fileInput">Load result JSON</label><input id="fileInput" type="file" accept="application/json,.json" hidden><button id="downloadJson" class="button ghost" type="button" disabled>Download source JSON</button></div></div>
+    <h1>OPC UA / OT Asset Discovery — Experimental Validation Dashboard</h1>
+    <p class="subtitle">Live Network Capture → Passive Protocol Identification → Asset Discovery → Active Enrichment</p>
+    <div class="header-bottom"><div id="headerMeta" class="meta-line"></div><div id="experimentStatus" class="status-pill"><span class="status-dot"></span><span>Loading result</span></div></div>
+  </div><div id="loadState" class="load-state" role="status">Loading inventory_live.json…</div></header>
+
+  <main class="shell">
+    <nav class="nav" aria-label="Dashboard sections"><div class="nav-inner"><a href="#overview">Overview</a><a href="#pipeline">Pipeline</a><a href="#passive">Passive</a><a href="#packets">Packets</a><a href="#flows">Flows</a><a href="#active">Active</a><a href="#identity">Identity</a><a href="#warnings">Limitations</a><a href="#raw">Raw JSON</a></div></nav>
+    <section id="overview" class="section"><div class="section-head"><div><span class="section-kicker">Experiment at a glance</span><h2>Capture overview</h2><p class="section-note">Metrics are read from the loaded result. OPC UA share is calculated from packet counts.</p></div><span id="captureWindow" class="eyebrow"></span></div><div id="kpis" class="grid kpi-grid"></div>
+      <div class="two-col" style="margin-top:13px"><article class="card"><div class="card-title-row"><div><h3>Traffic composition</h3><div class="subtle">Captured packets classified by packet-level evidence</div></div><div id="opcShare" class="share-value">—</div></div><div class="traffic-total"><strong id="trafficTotal">—</strong><span class="subtle">total observed packets</span></div><div class="traffic-bar" role="img" aria-label="OPC UA and other observed traffic"><span id="trafficOpc" class="traffic-opc"></span><span id="trafficOther" class="traffic-other"></span></div><div class="legend-row"><div class="legend-item"><i class="legend-swatch"></i><span id="trafficOpcLabel">OPC UA —</span></div><div class="legend-item"><i class="legend-swatch gray"></i><span id="trafficOtherLabel">Other traffic —</span></div></div><div id="trafficBytes" class="metric-pairs"></div></article>
+      <article class="card"><div class="card-title-row"><div><h3>Observed OPC UA messages</h3><div class="subtle">Counts from capture summary</div></div><span id="messageTotal" class="tag neutral">— messages</span></div><div id="messageChart" class="message-chart"></div><div id="messageSequence" class="sequence" aria-label="Unique message types in first-seen order"></div><div class="subtle" style="margin-top:9px">Unique message types in first-seen order · HEL: Hello · ACK: Acknowledge · OPN: OpenSecureChannel · MSG: message · CLO: CloseSecureChannel</div></article></div>
+      <article class="card" style="margin-top:13px"><div class="card-title-row"><div><h3>Capture metadata and directed endpoint pairs</h3><div class="subtle">Capture configuration, provenance, local network context, and bidirectional summaries</div></div></div><div id="captureMetadata"></div><div id="directionPairs" class="grid" style="margin-top:10px"></div></article>
+    </section>
+    <section id="pipeline" class="section"><div class="section-head"><div><span class="section-kicker">Evidence path</span><h2>Discovery pipeline</h2><p class="section-note">Passive evidence establishes endpoints and roles before the separate active enrichment stage.</p></div></div><div id="pipelineStages" class="pipe"></div><div class="phase-band"><span class="phase-passive">Passive observation and inference</span><span class="phase-arrow">positive server evidence →</span><span class="phase-active">Controlled active enrichment</span></div></section>
+    <section id="passive" class="section"><div class="section-head"><div><span class="section-kicker">Captured packet evidence</span><h2>Passive discovery</h2><p class="section-note">Endpoint identity is IP + transport + port. Ethernet addresses remain link-layer observations.</p></div><span id="passiveCount" class="tag neutral"></span></div><div id="assetCards" class="asset-grid"></div></section>
+    <section id="evidence" class="section"><div class="section-head"><div><span class="section-kicker">Protocol basis</span><h2>OPC UA detection evidence</h2><p class="section-note">Identification uses UA-TCP packet framing evidence rather than TCP port 4840 alone.</p></div><span id="evidenceStatus" class="tag"></span></div><div class="two-col"><article class="card"><div class="card-title-row"><div><h3>Evidence values</h3><div class="subtle">Positive evidence strings recorded on passive assets</div></div><span id="confidenceValue" class="tag neutral">Confidence —</span></div><div id="evidenceList" class="evidence-wrap"></div></article><article class="card"><div class="card-title-row"><div><h3>Provenance model</h3><div class="subtle">Different origins remain distinct</div></div></div><div class="provenance-grid"><div class="provenance-card observed"><strong>PASSIVE OBSERVED</strong><p>Directly present in captured packet fields or framing.</p></div><div class="provenance-card inferred"><strong>PASSIVE INFERRED</strong><p>Derived from packet direction or endpoint behavior.</p></div><div class="provenance-card active"><strong>ACTIVE OBSERVED</strong><p>Returned by OPC UA requests after positive passive discovery.</p></div></div></article></div></section>
+    <section id="sessions" class="section"><div class="section-head"><div><span class="section-kicker">Conversation context</span><h2>OPC UA session</h2><p class="section-note">Session endpoint direction includes the recorded provenance.</p></div><span id="sessionCount" class="tag neutral"></span></div><div id="sessionCards" class="grid"></div></section>
+    <section id="packets" class="section"><div class="section-head"><div><span class="section-kicker">Packet-level records</span><h2>OPC UA packet events</h2><p class="section-note">Search and filter captured events. Expand rows for full evidence, provenance, and limitations.</p></div><span id="eventCount" class="tag neutral"></span></div><article class="card"><div class="table-tools"><input id="eventSearch" class="control search" type="search" placeholder="Search addresses, evidence, service…" aria-label="Search packet events"><select id="eventType" class="control" aria-label="Filter by message type"><option value="">All message types</option></select><select id="eventDirection" class="control" aria-label="Filter by direction"><option value="">All directions</option><option>client_to_server</option><option>server_to_client</option><option>unknown</option></select><span id="eventMeta" class="table-meta"></span></div><details><summary>Open searchable packet event table</summary><div class="details-content"><div class="data-table-wrap"><table><thead><tr><th>Index</th><th>Time</th><th>Source</th><th>Destination</th><th>Type</th><th>Service</th><th>Direction</th><th>Confidence</th><th>Details</th></tr></thead><tbody id="eventRows"></tbody></table></div><button id="moreEvents" class="text-button" type="button" hidden>Show more events</button></div></details></article></section>
+    <section id="flows" class="section"><div class="section-head"><div><span class="section-kicker">L2–L4 communication</span><h2>Network flows</h2><p class="section-note">Session-matching flows are distinguished from other observed traffic.</p></div><span id="flowCount" class="tag neutral"></span></div><article class="card"><div class="table-tools"><select id="flowScope" class="control"><option value="all">All observed flows</option><option value="opcua">OPC UA session flows</option><option value="other">Other flows</option></select><select id="flowTransport" class="control"><option value="">All transports</option><option value="tcp">TCP</option><option value="udp">UDP</option></select><input id="flowSource" class="control" placeholder="Source IP" aria-label="Filter source IP"><input id="flowDestination" class="control" placeholder="Destination IP" aria-label="Filter destination IP"><input id="flowPort" class="control" placeholder="Port" inputmode="numeric" aria-label="Filter port"><span id="flowMeta" class="table-meta"></span></div><details><summary>Open searchable flow table</summary><div class="details-content"><div class="data-table-wrap"><table><thead><tr><th>Class</th><th>Source</th><th>Destination</th><th>Transport</th><th>Packets</th><th>Bytes</th><th>First seen</th><th>Last seen</th><th>Provenance</th><th>Details</th></tr></thead><tbody id="flowRows"></tbody></table></div><button id="moreFlows" class="text-button" type="button" hidden>Show more flows</button></div></details></article></section>
+    <section id="link" class="section"><div class="section-head"><div><span class="section-kicker">Ethernet layer</span><h2>Link-layer observations</h2><p class="section-note">Observed MAC addresses are separate from remote IP endpoint identity.</p></div></div><div class="two-col"><article class="card"><div class="card-title-row"><div><h3>Observed Ethernet MACs</h3><div class="subtle">Packet count and provenance from passive flow records</div></div><span id="linkCount" class="tag neutral"></span></div><div id="linkObservations"></div></article><div class="callout warn"><strong>Attribution limitation</strong><br>Observed Ethernet MAC addresses may represent the next-hop gateway for routed traffic rather than the remote host. The remote server is identified by observed IP, transport protocol, and port.</div></div></section>
+    <section id="active" class="section"><div class="section-head"><div><span class="section-kicker">After passive confirmation</span><h2>Active OPC UA enrichment</h2><p class="section-note">Only passively discovered server endpoints appear here. Active data is not merged into passive evidence.</p></div><span id="activeCount" class="tag neutral"></span></div><div id="activeRecords" class="grid"></div></section>
+    <section id="identity" class="section"><div class="section-head"><div><span class="section-kicker">Actively retrieved server metadata</span><h2>Application and server identity</h2><p class="section-note">Values appear only when present in the active result.</p></div></div><div class="three-col"><article class="card"><div class="card-title-row"><div><h3>Application identity</h3><div class="subtle">Endpoint/server application description</div></div><span class="tag neutral">ACTIVE OBSERVED</span></div><dl id="applicationIdentity" class="definition-grid"></dl></article><article class="card"><div class="card-title-row"><div><h3>Build information</h3><div class="subtle">BuildInfo and retrieval status</div></div><span id="buildStatus" class="tag neutral"></span></div><dl id="buildInfo" class="definition-grid"></dl></article><article class="card"><div class="card-title-row"><div><h3>Device information</h3><div class="subtle">Null values remain unavailable</div></div><span class="tag neutral">ACTIVE OBSERVED</span></div><dl id="deviceInfo" class="definition-grid"></dl></article></div>
+      <div class="two-col" style="margin-top:13px"><article class="card"><div class="card-title-row"><div><h3>Certificate / trust information</h3><div class="subtle">Certificate fields returned for endpoints</div></div><span id="certificateCount" class="tag neutral"></span></div><div id="certificates"></div></article><article class="card"><div class="card-title-row"><div><h3>Server status</h3><div class="subtle">CurrentStatus and embedded BuildInfo</div></div><span id="serverStatusState" class="tag neutral"></span></div><dl id="serverStatus" class="definition-grid"></dl></article></div>
+      <article class="card" style="margin-top:13px"><div class="card-title-row"><div><h3>NamespaceArray</h3><div class="subtle">Complete namespace list retrieved actively</div></div><span id="namespaceCount" class="tag neutral"></span></div><div id="namespaces"></div></article><article class="card" style="margin-top:13px"><div class="card-title-row"><div><h3>Address-space hints</h3><div class="subtle">Hints only; not full address-space extraction</div></div><span id="hintCount" class="tag neutral"></span></div><div id="addressHints" class="hint-grid"></div></article><article class="card" style="margin-top:13px"><div class="card-title-row"><div><h3>Active service results</h3><div class="subtle">Status taken from each active result</div></div></div><div id="serviceResults" class="grid"></div></article>
+    </section>
+    <section id="comparison" class="section"><div class="section-head"><div><span class="section-kicker">Evidence boundary</span><h2>Observed versus enriched</h2><p class="section-note">Active metadata is downstream of positive passive server discovery.</p></div></div><div class="two-col"><article class="compare-col"><h3>Passive discovery</h3><ul id="passiveCompare"></ul></article><article class="compare-col active"><h3>Active enrichment</h3><ul id="activeCompare"></ul></article></div></section>
+    <section id="warnings" class="section"><div class="section-head"><div><span class="section-kicker">Interpretation limits</span><h2>Warnings and limitations</h2><p class="section-note">Non-fatal restrictions are shown as limitations, not failures.</p></div><span id="warningCount" class="tag warn"></span></div><div id="warningList" class="warning-list"></div></section>
+    <section id="validation" class="section"><div class="section-head"><div><span class="section-kicker">Project evidence</span><h2>Validation summary</h2><p class="section-note">Automated checks reflect the latest completed project validation; live entries are evaluated from the loaded result.</p></div></div><article class="card"><div id="validationGrid" class="validation-grid"></div></article></section>
+    <section id="conclusion" class="section"><div class="conclusion"><span class="section-kicker" style="color:var(--lime)">Experimental result</span><h2>Experimental conclusion</h2><p id="conclusionText"></p><div id="conclusionGrid" class="conclusion-grid"></div></div></section>
+    <section id="raw" class="section"><div class="section-head"><div><span class="section-kicker">Source record</span><h2>Raw JSON</h2><p class="section-note">The view and download use the exact source text loaded; it is not rewritten.</p></div><div class="source-actions"><input id="rawSearch" class="control" type="search" placeholder="Find text in raw JSON" aria-label="Search raw JSON"><button id="findRaw" class="button" type="button">Find</button><button id="copyRaw" class="button" type="button">Copy</button></div></div><article class="card"><details><summary>Show original JSON text</summary><div class="details-content"><pre id="rawJson" class="raw-area" tabindex="0" aria-label="Original source JSON"></pre></div></details></article></section>
+    <footer class="footer"><span>Evidence-first OT asset discovery research</span><span id="sourceFooter">Source: inventory_live.json</span></footer>
+  </main>
+
+  <script>
+    "use strict";
+    const $ = selector => document.querySelector(selector);
+    const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;", "'":"&#39;"}[c]));
+    const fmt = value => value == null || value === "" ? "Not available" : typeof value === "number" ? new Intl.NumberFormat().format(value) : String(value);
+    const bytes = value => value == null ? "Not available" : `${new Intl.NumberFormat().format(value)} B`;
+    const arr = value => Array.isArray(value) ? value : value == null ? [] : [value];
+    const json = value => JSON.stringify(value,null,2);
+    const time = value => { if (value == null || value === "") return "Not available"; const d = new Date(typeof value === "number" ? value*1000 : value); return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString(undefined,{dateStyle:"medium",timeStyle:"medium"}); };
+    let rawText = "", result = null, eventLimit = 100, flowLimit = 100;
+    function note(text,error=false) { const el=$("#loadState"); el.textContent=text; el.classList.toggle("error",error); el.hidden=!text; }
+    function unique(values) { return [...new Set(values.filter(v=>v!=null&&v!==""))]; }
+    function dfield(label,value,mono=false) { const shown=value==null||value===""?'<span class="subtle">Not available / not observed</span>':`<span${mono?' class="mono"':''}>${esc(typeof value==="object"?json(value):value)}</span>`; return `<div class="definition"><dt>${esc(label)}</dt><dd>${shown}</dd></div>`; }
+    function fullDetails(label,value) { return `<details><summary>${esc(label)}</summary><div class="details-content"><pre class="mono" style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(json(value))}</pre></div></details>`; }
+    function copy(value,label="Copy") { return value==null||value===""?"":`<button class="copy-btn" type="button" data-copy="${esc(value)}" title="Copy ${esc(label.toLowerCase())}">${esc(label)}</button>`; }
+    function tag(status) { const s=String(status??"Not available"), l=s.toLowerCase(), cls=l.includes("ok")||l.includes("success")?"tag":l.includes("unavailable")||l.includes("restrict")||l.includes("unsupported")?"tag warn":"tag neutral"; return `<span class="${cls}">${esc(s)}</span>`; }
+    function addr(ep) { return ep?`${ep.ip??"?"}:${ep.port??"?"}`:"Not available"; }
+    function evidenceOf(assets) { return unique(assets.flatMap(a=>arr(a.protocol_metadata?.opcua?.detection?.evidence))); }
+    function confidenceOf(assets) { const v=assets.map(a=>a.protocol_metadata?.opcua?.detection?.confidence).filter(Number.isFinite); return v.length?Math.max(...v):null; }
+    function flowOpcua(flow,sessions) { return sessions.some(s=>{ const a=s.endpoint_a||{},b=s.endpoint_b||{},c=s.client_endpoint,sv=s.server_endpoint; return (flow.source_ip===a.ip&&flow.source_port===a.port&&flow.destination_ip===b.ip&&flow.destination_port===b.port)||(flow.source_ip===b.ip&&flow.source_port===b.port&&flow.destination_ip===a.ip&&flow.destination_port===a.port)||(c&&sv&&((flow.source_ip===c.ip&&flow.source_port===c.port&&flow.destination_ip===sv.ip&&flow.destination_port===sv.port)||(flow.source_ip===sv.ip&&flow.source_port===sv.port&&flow.destination_ip===c.ip&&flow.destination_port===c.port))); }); }
+    function renderAsset(a) {
+      const id=a.identity||{}, det=a.protocol_metadata?.opcua?.detection||{}, peers=arr(a.observed_ethernet_peers), role=a.role||"Unknown", endpoint=`${id.ip??"?"}:${id.port??"?"}`;
+      const fields=[dfield("Transport protocol",id.transport_protocol),dfield("Role provenance",a.role_provenance),dfield("Protocol","OPC UA"),dfield("Detection",det.detected),dfield("Detection confidence",det.confidence==null?null:`${(det.confidence*100).toFixed(0)}%`),dfield("Passive provenance",a.provenance),dfield("Detected packet count",arr(det.packet_indices).length),dfield("Station function",a.station_function),dfield("Discovered protocols",a.discovered_protocols),dfield("Packet indices",arr(det.packet_indices).length?`${det.packet_indices.length} indices`:null)].join("");
+      const peerHtml=peers.length?peers.map(p=>`<div class="link-observation"><div><div class="link-mac">${esc(p.mac??"Not available")} ${copy(p.mac,"Copy MAC")}</div><div class="subtle">MAC provenance: ${esc(p.provenance??"Not available")}</div><div class="subtle">Endpoint relationship: ${esc(p.endpoint_relationship_provenance??"Not available")}</div></div><span class="subtle">${arr(p.packet_indices).length} packet indices</span></div>${fullDetails("Packet indices",p.packet_indices)}`).join(""):"<span class='subtle'>Not observed</span>";
+      return `<article class="card asset-card"><div class="asset-top"><div><span class="eyebrow">Endpoint identity · IP + transport + port</span><div class="asset-id">${esc(id.ip??"Not available")}</div><div class="asset-subid">${esc(String(id.transport_protocol??"Not available").toUpperCase())} · ${esc(id.port??"Not available")} ${copy(endpoint,"Copy endpoint")}</div></div><span class="role-badge ${role==="Server"?"server":""}">${esc(role)}</span></div><div class="asset-body"><dl class="definition-grid">${fields}</dl><details><summary>Detection evidence (${arr(det.evidence).length})</summary><div class="details-content"><div class="evidence-wrap">${arr(det.evidence).map(e=>`<span class="evidence-chip">${esc(e)}</span>`).join("")||"Not available"}</div></div></details><details><summary>Observed Ethernet peers (${peers.length})</summary><div class="details-content">${peerHtml}</div></details>${a.port_profile?`<details><summary>Port profile</summary><div class="details-content">${fullDetails("Port profile fields",a.port_profile)}</div></details>`:""}${a.conversations?`<details><summary>Conversation information</summary><div class="details-content">${fullDetails("Observed conversations",a.conversations)}</div></details>`:""}${fullDetails("All passive asset fields",a)}</div></article>`;
+    }
+    function renderSession(s) { const c=s.client_endpoint,sv=s.server_endpoint; return `<article class="card"><div class="card-title-row"><div><h3>OPC UA communication session</h3><div class="subtle">${esc(s.provenance??"Not available")} · ${esc(s.role_provenance??"Role provenance unavailable")}</div></div><span class="tag">${esc(fmt(s.packet_count))} packets</span></div><div class="relationship"><div class="node"><span class="node-role">OPC UA Client</span><div class="node-ip">${esc(addr(c))} ${copy(addr(c),"Copy client endpoint")}</div><div class="node-port">Role: client · direction inferred from session exchange</div></div><div class="exchange"><strong>⇄</strong><span>TCP · OPC UA</span></div><div class="node server"><span class="node-role">OPC UA Server</span><div class="node-ip">${esc(addr(sv))} ${copy(addr(sv),"Copy server endpoint")}</div><div class="node-port">Identity: IP + transport + port</div></div></div><div class="metric-pairs"><div class="metric-pair"><span>Grouped packets</span><strong>${esc(fmt(s.packet_count))}</strong></div><div class="metric-pair"><span>Grouped bytes</span><strong>${esc(bytes(s.bytes))}</strong></div><div class="metric-pair"><span>First seen</span><strong>${esc(time(s.first_seen))}</strong></div><div class="metric-pair"><span>Last seen</span><strong>${esc(time(s.last_seen))}</strong></div></div>${fullDetails("Session record",s)}</article>`; }
+    function renderActive(r) { const ref=r.passive_server_endpoint_reference||{}; return `<article class="card"><div class="card-title-row"><div><h3>Discovered server · ${esc(r.target_ip??"Not available")}:${esc(r.target_port??"Not available")}</h3><div class="subtle">Enrichment follows passive server evidence · ${esc(r.provenance??"Not available")}</div></div>${tag(r.status)}</div><div class="enrichment-path"><div class="enrichment-step"><strong>01 · PASSIVE</strong>Evidence positive</div><div class="enrichment-step"><strong>02 · ENDPOINT</strong>${esc(ref.ip??"Not available")}:${esc(ref.port??"Not available")}</div><div class="enrichment-step active"><strong>03 · ACTIVE</strong>Controlled OPC UA queries</div><div class="enrichment-step active"><strong>04 · RESULT</strong>${esc(fmt(r.endpoint_count))} endpoint descriptions</div></div><dl class="definition-grid">${dfield("Target IP",r.target_ip,true)}${dfield("Target port",r.target_port)}${dfield("Endpoint URL",r.endpoint_url,true)}${dfield("Active provenance",r.provenance)}${dfield("Passive endpoint reference",ref,true)}${dfield("Endpoint count",r.endpoint_count)}</dl>${fullDetails("Complete active record",r)}</article>`; }
+    function renderEvents(events) {
+      const select=$("#eventType"), old=select.value, types=unique(events.map(e=>e.opcua_message_type)).sort(); select.innerHTML='<option value="">All message types</option>'+types.map(t=>`<option>${esc(t)}</option>`).join(""); select.value=old;
+      const q=$("#eventSearch").value.trim().toLowerCase(), type=select.value, direction=$("#eventDirection").value;
+      const found=events.filter(e=>{const blob=[e.packet_index,e.timestamp,e.source_ip,e.destination_ip,e.source_mac,e.destination_mac,e.source_port,e.destination_port,e.opcua_message_type,e.opcua_service_hint,e.service_id,e.direction,...arr(e.detection_evidence)].join(" ").toLowerCase();return(!q||blob.includes(q))&&(!type||e.opcua_message_type===type)&&(!direction||e.direction===direction);});
+      $("#eventCount").textContent=`${events.length} captured events`; $("#eventMeta").textContent=`Showing ${Math.min(found.length,eventLimit)} of ${found.length} matches`;
+      $("#eventRows").innerHTML=found.slice(0,eventLimit).map(e=>`<tr><td>${esc(e.packet_index)}</td><td class="nowrap">${esc(time(e.timestamp))}</td><td class="mono">${esc(e.source_ip??"?")}:${esc(e.source_port??"?")}</td><td class="mono">${esc(e.destination_ip??"?")}:${esc(e.destination_port??"?")}</td><td>${esc(e.opcua_message_type??"Not available")}</td><td>${esc(e.opcua_service_hint??e.service_id??"Not identified")}</td><td>${esc(e.direction??"Not available")}</td><td>${e.detection_confidence==null?"Not available":`${(e.detection_confidence*100).toFixed(0)}%`}</td><td>${fullDetails("Full packet event",e)}</td></tr>`).join("")||'<tr><td colspan="9" class="empty">No events match these filters.</td></tr>';
+      $("#moreEvents").hidden=found.length<=eventLimit; $("#moreEvents").onclick=()=>{eventLimit+=100;renderEvents(events);};
+    }
+    function renderFlows(flows,sessions) {
+      const scope=$("#flowScope").value, transport=$("#flowTransport").value, src=$("#flowSource").value.trim().toLowerCase(), dst=$("#flowDestination").value.trim().toLowerCase(), port=$("#flowPort").value.trim();
+      const found=flows.map(flow=>({flow,opc:flowOpcua(flow,sessions)})).filter(({flow,opc})=>(scope==="all"||(scope==="opcua"&&opc)||(scope==="other"&&!opc))&&(!transport||String(flow.transport_protocol).toLowerCase()===transport)&&(!src||String(flow.source_ip??"").toLowerCase().includes(src))&&(!dst||String(flow.destination_ip??"").toLowerCase().includes(dst))&&(!port||String(flow.source_port??"").includes(port)||String(flow.destination_port??"").includes(port)));
+      $("#flowCount").textContent=`${flows.length} observed flows`; $("#flowMeta").textContent=`Showing ${Math.min(found.length,flowLimit)} of ${found.length} matches`;
+      $("#flowRows").innerHTML=found.slice(0,flowLimit).map(({flow:f,opc})=>`<tr><td>${opc?'<span class="tag">OPC UA session</span>':'<span class="tag neutral">Other observed</span>'}</td><td class="mono">${esc(f.source_ip??"?")}:${esc(f.source_port??"?")}</td><td class="mono">${esc(f.destination_ip??"?")}:${esc(f.destination_port??"?")}</td><td>${esc(f.transport_protocol??"Not available")}</td><td>${esc(fmt(f.packet_count))}</td><td>${esc(bytes(f.byte_count))}</td><td>${esc(time(f.first_seen))}</td><td>${esc(time(f.last_seen))}</td><td>${esc(f.provenance??"Not available")}</td><td>${fullDetails("Full flow record",f)}</td></tr>`).join("")||'<tr><td colspan="10" class="empty">No flows match these filters.</td></tr>';
+      $("#moreFlows").hidden=found.length<=flowLimit; $("#moreFlows").onclick=()=>{flowLimit+=100;renderFlows(flows,sessions);};
+    }
+    function renderIdentity(active,endpoints) {
+      const r=active[0]||{}, ep=endpoints[0]||{}, build=r.build_info||r.server_status?.build_info||{}, device=r.device||{}, status=r.server_status||{};
+      $("#applicationIdentity").innerHTML=[dfield("Application name",r.application_name??ep.application_name),dfield("Application URI",r.application_uri??ep.application_uri,true),dfield("Product URI",r.product_uri??ep.product_uri,true),dfield("Application type",r.application_type??ep.application_type),dfield("Security mode",r.security_mode??ep.security_mode),dfield("Security policy",r.security_policy??ep.security_policy,true)].join("");
+      $("#buildStatus").textContent=r.field_status?.build_info??"Status unavailable"; $("#buildInfo").innerHTML=[dfield("Product name",build.product_name),dfield("Manufacturer",build.manufacturer_name),dfield("Software version",build.software_version),dfield("Build number/date",build.build_number)].join("");
+      $("#deviceInfo").innerHTML=["Manufacturer","Model","SerialNumber","HardwareRevision","SoftwareRevision"].map(k=>dfield(k,device[k])).join("");
+      $("#serverStatusState").textContent=r.field_status?.server_status??"Status unavailable"; $("#serverStatus").innerHTML=[dfield("Start time",status.start_time),dfield("Current time",status.current_time),dfield("State",status.state),dfield("Seconds till shutdown",status.seconds_till_shutdown),dfield("Shutdown reason",status.shutdown_reason),dfield("Embedded BuildInfo",status.build_info)].join("");
+      const certs=endpoints.map((endpoint,index)=>({endpoint,index,cert:endpoint.certificate})).filter(x=>x.cert); $("#certificateCount").textContent=`${certs.length} certificates`;
+      $("#certificates").innerHTML=certs.length?certs.map(({endpoint,index,cert:c})=>`<details><summary>Endpoint ${index+1} · ${esc(endpoint.endpoint_url??"URL unavailable")}</summary><div class="details-content"><dl class="definition-grid">${[["SHA-256 fingerprint",c.sha256,true],["Certificate length",c.length],["Subject",c.subject],["Issuer",c.issuer],["Serial number",c.serial_number,true],["Valid from",c.not_before],["Valid until",c.not_after],["Signature hash",c.signature_hash],["Application URI SANs",c.san_application_uris,true],["DNS SANs",c.san_dns_names,true],["IP SANs",c.san_ip_addresses,true],["Public key type",c.public_key_type],["Application URI matches certificate SAN",endpoint.application_uri_matches_certificate_san]].map(([k,v,m])=>`<div class="definition"><dt>${esc(k)}</dt><dd>${v==null?'<span class="subtle">Not available / not observed</span>':`${esc(typeof v==="object"?json(v):v)} ${k==="SHA-256 fingerprint"?copy(v,"Copy fingerprint"):""}`}</dd></div>`).join("")}</dl>${fullDetails("All endpoint certificate fields",c)}</div></details>`).join(""):'<div class="subtle">No certificate information is present in endpoint descriptions.</div>';
+      const ns=arr(r.namespace_array); $("#namespaceCount").textContent=`${ns.length} entries`; $("#namespaces").innerHTML=ns.length?`<div class="namespace-scroll"><table><thead><tr><th>Index</th><th>Namespace URI</th><th>Copy</th></tr></thead><tbody>${ns.map((uri,i)=>`<tr><td>${i}</td><td class="mono">${esc(uri)}</td><td>${copy(uri,"Copy URI")}</td></tr>`).join("")}</tbody></table></div>`:'<div class="subtle">NamespaceArray not available.</div>';
+      const hints=arr(r.address_space_hints); $("#hintCount").textContent=`${hints.length} hints`; $("#addressHints").innerHTML=hints.length?hints.map(h=>`<article class="hint-card"><div class="hint-name">${esc(h.name??"Not available")}</div><div class="hint-node">${esc(h.node??h.node_id??"Node not available")}</div><div class="hint-value">${esc(h.value==null?"Not available / not observed":typeof h.value==="object"?json(h.value):h.value)}</div>${fullDetails("Complete hint record",h)}</article>`).join(""):'<div class="subtle">No address-space hints were recorded.</div>';
+      const sr=active.flatMap((a,i)=>[["GetEndpoints",a.get_endpoints],["FindServers",a.find_servers],["FindServersOnNetwork",a.find_servers_on_network],["NamespaceArray",{status:a.field_status?.namespace_array,result:a.namespace_array}],["BuildInfo",{status:a.field_status?.build_info,result:a.build_info}],["ServerStatus",{status:a.field_status?.server_status,result:a.server_status}]].map(([name,value])=>({name,value,i})));
+      $("#serviceResults").innerHTML=sr.length?sr.map(({name,value:v,i})=>{v=v||{};const status=v.status??"Not available",l=String(status).toLowerCase(),label=l.includes("ok")?"SUCCESS":l.includes("unavailable")||l.includes("restrict")||l.includes("unsupported")?"UNSUPPORTED / WARNING":l.includes("fail")?"FAILED":"INFO",cls=label==="SUCCESS"?"good":label.includes("WARNING")?"warn":"",result=v.results??v.result;return `<div class="callout ${cls}"><strong>${esc(name)} · ${esc(label)}</strong><br>Target ${i+1} · Status: ${esc(status)}${v.endpoint_count!=null?`<br>Endpoint count: ${esc(v.endpoint_count)}`:""}${arr(v.warnings).length?`<br>${arr(v.warnings).map(esc).join("<br>")}`:""}${arr(v.errors).length?`<br>${arr(v.errors).map(esc).join("<br>")}`:""}${result!=null&&typeof result==="string"?`<br>${esc(result)}`:""}</div>`}).join(""):'<div class="subtle">No active service results available.</div>';
+    }
+    function renderWarnings(warnings) {
+      $("#warningCount").textContent=`${warnings.length} item${warnings.length===1?"":"s"}`;
+      const meaning=w=>{const s=String(w).toLowerCase();if(s.includes("findserversonnetwork")||s.includes("badserviceunsupported"))return "This service was not supported or permitted; other successful fields remain valid.";if(s.includes("mac")||s.includes("next-hop"))return "Ethernet identifies the local link peer and may not identify the remote server device.";if(s.includes("reassembly")||s.includes("segment"))return "Sequence-aware reassembly handles observed contiguous segments; segment loss or capture gaps can still leave a message incomplete.";if(s.includes("encrypted")||s.includes("securechannel"))return "Encrypted payloads may hide application service details from passive inspection.";return "Recorded as a limitation or non-fatal issue; it does not negate other observed evidence.";};
+      $("#warningList").innerHTML=warnings.length?warnings.map(w=>`<div class="warning-row"><span class="warning-icon" aria-hidden="true">!</span><div><p><strong>${esc(w)}</strong></p><p class="subtle">${esc(meaning(w))}</p></div></div>`).join(""):'<div class="callout good">No warnings were recorded.</div>';
+    }
+    function renderComparison(assets,summary,active,sessions,events) {
+      const endpointIps=unique(assets.map(a=>a.identity?.ip)), ports=unique(assets.map(a=>a.identity?.port));
+      const endpointDescriptions=active.flatMap(a=>arr(a.endpoint_descriptions));
+      const passiveItems=[
+        `Client IPs: ${arr(summary.unique_opcua_client_ips).join(", ")||"Not observed"}`,
+        `Server IPs: ${arr(summary.unique_opcua_server_ips).join(", ")||"Not observed"}`,
+        `Observed endpoint ports: ${ports.join(", ")||"Not observed"}`,
+        `Protocol evidence: ${summary.opcua_detected?"OPC UA detected":"Not detected"}`,
+        `Roles: ${unique(assets.map(a=>a.role)).join(", ")||"Not available"}`,
+        `OPC UA packets: ${fmt(summary.opcua_packets)}`,
+        `Message types: ${unique(events.map(e=>e.opcua_message_type)).join(", ")||"Not observed"}`,
+        `Packet evidence strings: ${evidenceOf(assets).length}`,
+        `Session records: ${sessions.length}`,
+        `Unique OPC UA IPs: ${endpointIps.join(", ")||"Not observed"}`,
+      ];
+      const activeItems=[
+        `Endpoint configurations: ${endpointDescriptions.length}`,
+        `Security policy and mode: ${endpointDescriptions.length?"Recorded per endpoint":"Not available"}`,
+        `Application identity: ${active.map(a=>a.application_name).filter(Boolean).join(", ")||"Not available"}`,
+        `Certificates: ${endpointDescriptions.filter(e=>e.certificate).length}`,
+        `NamespaceArray entries: ${active.reduce((n,a)=>n+arr(a.namespace_array).length,0)}`,
+        `BuildInfo records: ${active.filter(a=>a.build_info).length}`,
+        `ServerStatus records: ${active.filter(a=>a.server_status).length}`,
+        `Address-space hints: ${active.reduce((n,a)=>n+arr(a.address_space_hints).length,0)}`,
+        `Active targets: ${active.length}`,
+      ];
+      $("#passiveCompare").innerHTML=passiveItems.map(item=>`<li>${esc(item)}</li>`).join("");
+      $("#activeCompare").innerHTML=activeItems.map(item=>`<li>${esc(item)}</li>`).join("");
+    }
+    function render(data,raw,source) {
+      result=data; rawText=raw; const s=data.runtime_summary||{}, p=data.passive||{}, assets=arr(p.assets), active=arr(data.active), events=arr(p.opcua_packet_events), sessions=arr(p.sessions), flows=arr(p.flows), links=arr(p.link_layer_observations);
+      const warnings=unique([...arr(data.warnings),...arr(p.warnings),...active.flatMap(a=>arr(a.warnings))]);
+      const counts=s.message_type_counts&&typeof s.message_type_counts==="object"?s.message_type_counts:{}, messageEntries=Object.entries(counts).sort((a,b)=>b[1]-a[1]), messages=messageEntries.reduce((sum,[,v])=>sum+(Number(v)||0),0), opc=Number(s.opcua_packets)||0,total=Number(s.total_packets_observed)||0,other=s.non_opc_packets??total-opc,share=total?opc/total*100:null;
+      const endpoints=active.flatMap(a=>arr(a.endpoint_descriptions)), servers=assets.filter(a=>a.role==="Server"), clients=assets.filter(a=>a.role==="Client"), conf=confidenceOf(assets), detected=Boolean(s.opcua_detected)||assets.some(a=>a.protocol_metadata?.opcua?.detection?.detected===true), exact=["runtime_summary","passive","active","warnings"].every(k=>Object.hasOwn(data,k))&&Object.keys(data).length===4;
+      const enriched=active.some(a=>servers.some(x=>x.identity?.ip===a.passive_server_endpoint_reference?.ip&&x.identity?.port===a.passive_server_endpoint_reference?.port));
+      $("#headerMeta").innerHTML=[["Capture mode",s.capture_mode],["Interface",s.interface],["Duration",s.duration_seconds==null?null:`${fmt(s.duration_seconds)} seconds`],["Capture started",time(s.capture_first_seen)],["Capture ended",time(s.capture_last_seen)]].map(([k,v])=>`<span class="meta-item"><span class="meta-label">${esc(k)}</span><span class="meta-value">${esc(fmt(v))}</span></span>`).join("");
+      $("#experimentStatus").classList.toggle("no",!detected); $("#experimentStatus").innerHTML=`<span class="status-dot"></span><span>OPC UA detected: ${detected?"YES":"NO"}</span>`; $("#sourceFooter").textContent=`Source: ${source}`; $("#downloadJson").disabled=false; $("#rawJson").textContent=raw;
+      $("#captureWindow").textContent=s.first_seen!=null||s.last_seen!=null?`${time(s.first_seen)} — ${time(s.last_seen)}`:"Capture timestamps not available";
+      const metrics=[["Total packets observed",s.total_packets_observed,"packets"],["OPC UA packets",s.opcua_packets,"packet evidence"],["Non-OPC UA packets",s.non_opc_packets,"remaining capture"],["OPC UA share",share==null?null:`${share.toFixed(2)}%`,"of captured packets"],["Passive assets",assets.length,"endpoint identities"],["Active targets",active.length,"enrichment records"],["Unique OPC UA clients",arr(s.unique_opcua_client_ips).length,arr(s.unique_opcua_client_ips).join(", ")||"Not observed"],["Unique OPC UA servers",arr(s.unique_opcua_server_ips).length,arr(s.unique_opcua_server_ips).join(", ")||"Not observed"],["Unique OPC UA IPs",arr(s.unique_opcua_ip_addresses).length,arr(s.unique_opcua_ip_addresses).join(", ")||"Not observed"],["OPC UA payload bytes",s.opcua_payload_bytes,"captured payload"],["OPC UA packet bytes",s.opcua_packet_bytes,"captured frame length"],["Detection confidence",conf==null?null:`${(conf*100).toFixed(0)}%`,"maximum passive confidence"],["OPC UA sessions",sessions.length,"endpoint conversations"],["OPC UA flows",flows.filter(f=>flowOpcua(f,sessions)).length,"session-matching flows"],["Port 4840 candidates",s.port_4840_candidates,"candidate observations, not proof"]];
+      $("#kpis").innerHTML=metrics.map(([k,v,u])=>`<article class="card kpi"><div class="kpi-label">${esc(k)}</div><div class="kpi-value">${esc(fmt(v))}</div><span class="kpi-unit">${esc(u)}</span></article>`).join("");
+      $("#trafficTotal").textContent=fmt(s.total_packets_observed); $("#opcShare").textContent=share==null?"—":`${share.toFixed(2)}%`; $("#trafficOpc").style.width=`${share??0}%`; $("#trafficOther").style.width=`${share==null?0:100-share}%`; $("#trafficOpcLabel").textContent=`OPC UA — ${fmt(s.opcua_packets)}`; $("#trafficOtherLabel").textContent=`Other traffic — ${fmt(other)}`; $("#trafficBytes").innerHTML=`<div class="metric-pair"><span>OPC UA payload bytes</span><strong>${esc(bytes(s.opcua_payload_bytes))}</strong></div><div class="metric-pair"><span>OPC UA packet bytes</span><strong>${esc(bytes(s.opcua_packet_bytes))}</strong></div>`;
+      const pairRecords=arr(p.source_destination_pairs);
+      $("#captureMetadata").innerHTML=`<div class="two-col"><div>${fullDetails("Complete runtime summary",s)}${fullDetails("Capture configuration",p.capture??null)}</div><div>${fullDetails("Passive provenance labels",{provenance:p.provenance,inference_provenance:p.inference_provenance})}${fullDetails("Observed local networks",p.local_networks??[])}</div></div>`;
+      $("#directionPairs").innerHTML=pairRecords.length?pairRecords.map(pair=>`<div class="link-observation"><div><div class="link-mac">${esc(pair.source_ip??"?")}:${esc(pair.source_port??"?")} → ${esc(pair.destination_ip??"?")}:${esc(pair.destination_port??"?")}</div><div class="subtle">${esc(pair.transport??"Not available")}</div></div><div class="link-count">${esc(fmt(pair.packet_count))} packets · ${esc(bytes(pair.bytes))}</div></div>`).join(""):'<div class="subtle">No directed endpoint-pair summaries are available.</div>';
+      $("#messageTotal").textContent=`${fmt(messages)} observed messages`; const max=Math.max(1,...messageEntries.map(([,n])=>Number(n)||0)); $("#messageChart").innerHTML=messageEntries.length?messageEntries.map(([type,n])=>`<div class="bar-row"><span class="bar-label">${esc(type)}</span><div class="bar-track"><div class="bar-fill" style="width:${Number(n)/max*100}%"></div></div><span class="bar-count">${esc(fmt(n))} · ${messages?(Number(n)/messages*100).toFixed(1):"0.0"}%</span></div>`).join(""):'<div class="empty">No message-type counts available.</div>';
+      const sequence=unique(events.slice().sort((a,b)=>(a.packet_index??0)-(b.packet_index??0)).map(e=>e.opcua_message_type)); $("#messageSequence").innerHTML=sequence.length?sequence.map((t,i)=>`${i?"<b>→</b>":""}<span>${esc(t)}</span>`).join(""):'<span>Sequence not observed</span>';
+      const clientIps=clients.map(a=>`${a.identity?.ip??"?"}:${a.identity?.port??"?"}`).join(", ")||"Not observed",serverIps=servers.map(a=>`${a.identity?.ip??"?"}:${a.identity?.port??"?"}`).join(", ")||"Not observed";
+      const stages=[["Network interface",s.interface??"Not available",""],["Raw traffic",`${fmt(s.total_packets_observed)} packets`,""],["L2–L4 extraction",`${flows.length} directed flows`,""],["Protocol identification",detected?"OPC UA evidence present":"No positive evidence","passive"],["OPC UA evidence",`${fmt(s.opcua_packets)} packets · ${conf==null?"confidence unavailable":`${(conf*100).toFixed(0)}% max confidence`}`,"passive"],["Passive asset discovery",`${assets.length} IP/transport/port endpoints`,"passive"],["Client/server roles",`${clientIps} → ${serverIps}`,"passive"],["Active enrichment",`${active.length} discovered server target${active.length===1?"":"s"}`,"active"],["Enriched asset",active.map(a=>a.application_name).filter(Boolean).join(", ")||"Metadata not available","active"],["JSON output",`${Object.keys(data).length} root sections`,""]]; $("#pipelineStages").innerHTML=stages.map(([k,v,c])=>`<div class="stage ${c}"><strong>${esc(k)}</strong><span>${esc(v)}</span></div>`).join("");
+      $("#passiveCount").textContent=`${assets.length} endpoint assets`; $("#assetCards").innerHTML=assets.length?assets.map(renderAsset).join(""):'<div class="card empty">No passive assets are present.</div>';
+      $("#evidenceStatus").textContent=detected?"OPC UA DETECTED":"NOT DETECTED"; $("#evidenceStatus").className=detected?"tag":"tag warn"; $("#confidenceValue").textContent=`Confidence ${conf==null?"Not available":`${(conf*100).toFixed(0)}%`}`; const evidence=evidenceOf(assets); $("#evidenceList").innerHTML=evidence.length?evidence.map(x=>`<span class="evidence-chip">${esc(x)}</span>`).join(""):'<span class="subtle">No positive detection evidence available.</span>';
+      $("#sessionCount").textContent=`${sessions.length} session${sessions.length===1?"":"s"}`; $("#sessionCards").innerHTML=sessions.length?sessions.map(renderSession).join(""):'<div class="card empty">No OPC UA session records.</div>';
+      renderEvents(events); renderFlows(flows,sessions);
+      $("#linkCount").textContent=`${links.length} observed MACs`; $("#linkObservations").innerHTML=links.length?links.map(x=>`<div class="link-observation"><div><div class="link-mac">${esc(x.observed_ethernet_mac??"Not available")} ${copy(x.observed_ethernet_mac,"Copy MAC")}</div><div class="subtle">${esc(x.provenance??"Not available")}</div></div><span class="subtle">${esc(fmt(x.packet_count))} packets</span></div>`).join(""):'<div class="subtle">No link-layer observations.</div>';
+      $("#activeCount").textContent=`${active.length} active target${active.length===1?"":"s"}`; $("#activeRecords").innerHTML=active.length?active.map(renderActive).join(""):'<div class="card empty">No active enrichment records.</div>';
+      renderIdentity(active,endpoints); renderComparison(assets,s,active,sessions,events); renderWarnings(warnings);
+      const capturePass=s.capture_mode==="runtime"&&Number(s.total_packets_observed)>0, livePass=opc>0&&detected&&enriched&&active.length>0;
+      const validation=[["Automated tests","29 / 29 PASS",true],["Passive service validation","7 / 7 PASS",true],["Ground-truth active enrichment","PASS",true],["Non-standard OPC UA port","PASS",true],["Live NIC capture",capturePass?"PASS":"NOT VERIFIED",capturePass],["Live passive → active experiment",livePass?"PASS":opc>0?"PASSIVE ONLY":"NOT DEMONSTRATED",livePass]];
+      $("#validationGrid").innerHTML=validation.map(([k,v,ok])=>`<div class="validation-item"><span>${esc(k)}</span><span class="validation-state ${ok?"":"info"}">${esc(v)}</span></div>`).join("");
+      const success=opc>0&&detected,conclusion=[`Live capture ${capturePass?"observed packets":"is not confirmed by this result"}.`,`Packet-level OPC UA identification ${success?"succeeded":"was not demonstrated"}.`,`Passive client/server discovery recorded ${assets.length} endpoint assets.`,`Automatic active enrichment ${livePass?"followed passive server discovery":"was not confirmed after passive discovery"}.`,`The result contains ${endpoints.length} active endpoint descriptions, ${active.length} active targets, and ${exact?"the expected four-section JSON structure":"a different root structure"}.`]; $("#conclusionText").textContent=conclusion.join(" ")+" Conclusions apply to this capture and do not imply universal network discovery or visibility into encrypted services.";
+      const conclusionItems=[["NIC capture",capturePass],["OPC UA packet evidence",success],["Passive endpoint roles",assets.some(a=>["Client","Server"].includes(a.role))],["Active endpoint metadata",endpoints.length>0],["Certificate data",endpoints.some(e=>e.certificate)],["Namespace data",active.some(a=>arr(a.namespace_array).length)],["Evidence provenance",assets.some(a=>a.role_provenance)&&active.some(a=>a.provenance==="active_observed")],["Four root sections",exact]]; $("#conclusionGrid").innerHTML=conclusionItems.map(([k,ok])=>`<div class="conclusion-item">${ok?"✓":"—"} &nbsp;${esc(k)}</div>`).join("");
+      note(`Loaded ${source} · ${assets.length} passive endpoints · ${active.length} active targets`);
+    }
+
+    document.addEventListener("click",async event=>{const b=event.target.closest("[data-copy]");if(!b)return;try{await navigator.clipboard.writeText(b.dataset.copy);const t=b.textContent;b.textContent="Copied";setTimeout(()=>b.textContent=t,900);}catch{b.textContent="Unavailable";}});
+    $("#fileInput").addEventListener("change",async e=>{const f=e.target.files?.[0];if(!f)return;try{const text=await f.text();render(JSON.parse(text),text,f.name);}catch(error){note(`Could not load JSON: ${error.message}`,true);}});
+    $("#downloadJson").addEventListener("click",()=>{if(!rawText)return;const url=URL.createObjectURL(new Blob([rawText],{type:"application/json"}));const a=document.createElement("a");a.href=url;a.download="inventory_live.json";a.click();URL.revokeObjectURL(url);});
+    ["#eventSearch","#eventType","#eventDirection"].forEach(id=>$(id).addEventListener(id==="#eventSearch"?"input":"change",()=>{eventLimit=100;if(result)renderEvents(arr(result.passive?.opcua_packet_events));}));
+    ["#flowScope","#flowTransport","#flowSource","#flowDestination","#flowPort"].forEach(id=>$(id).addEventListener("input",()=>{flowLimit=100;if(result)renderFlows(arr(result.passive?.flows),arr(result.passive?.sessions));}));
+    $("#findRaw").addEventListener("click",()=>{const q=$("#rawSearch").value,a=$("#rawJson");if(!q||!rawText)return;const i=rawText.toLowerCase().indexOf(q.toLowerCase()),node=a.firstChild;if(i<0){note(`No match for “${q}” in source JSON.`,true);return;}if(!node)return;const range=document.createRange();range.setStart(node,i);range.setEnd(node,i+q.length);const selection=document.getSelection();selection.removeAllRanges();selection.addRange(range);a.focus();});
+    $("#copyRaw").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(rawText);note("Original JSON copied to clipboard.");}catch{note("Clipboard access unavailable in this browser context.",true);}});
+    const embeddedReportBase64 = "__OPCUA_REPORT_BASE64__";
+    async function boot(){try{if(embeddedReportBase64){const binary=atob(embeddedReportBase64),bytes=Uint8Array.from(binary,c=>c.charCodeAt(0)),text=new TextDecoder().decode(bytes);render(JSON.parse(text),text,"Embedded report JSON");return;}const response=await fetch("inventory_live.json",{cache:"no-store"});if(!response.ok)throw new Error(`HTTP ${response.status}`);const text=await response.text();render(JSON.parse(text),text,"inventory_live.json");}catch(error){note(`Automatic loading unavailable (${error.message}). Use “Load result JSON” to select inventory_live.json.`,true);}}
+    boot();
+  </script>
+</body>
+</html>
