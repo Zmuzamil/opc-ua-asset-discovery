@@ -2,11 +2,30 @@
 .venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local environments and editor state
+.env
+.env.*
+!.env.example
+.vscode/settings.json
+.vscode/tasks.json
+*.code-workspace
+.DS_Store
+Thumbs.db
 
 # Generated reports and live captures (contain local network addresses and traffic)
 results/
 inventory*.json
 asset_inventory.json
 benchmark.json
+benchmark_report*.json
 passive_opcua_service_validation.json
 ground_truth_opcua_validation.json
+
+# Local live capture; only labeled fixtures under release_pcaps/ are published
+/umati_active_probe_4840.pcapng
